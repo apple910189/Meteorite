@@ -3,7 +3,7 @@ import pygame.sprite
 import random
 import os
 
-# 常數
+# 常數 new branch
 FPS = 60
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
