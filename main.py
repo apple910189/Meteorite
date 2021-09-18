@@ -1,1 +1,1 @@
-clear main
+# clear main
