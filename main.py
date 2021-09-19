@@ -57,7 +57,7 @@ expl_sounds = [
 pg.mixer.music.load(os.path.join("sound", "background.ogg"))
 pg.mixer.music.set_volume(0.5)
 
-# 文字設定 #
+# 文字設定
 font_name = pg.font.match_font("arial")
 
 def draw_lives(surf, lives, img, x, y):
