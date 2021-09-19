@@ -23,23 +23,33 @@ pg.display.set_caption("Meteorite")
 clock = pg.time.Clock()
 
 # 載入圖片
-background_img = pg.image.load(os.path.join("img", "background.png")).convert()  # 轉換成pg好讀取的形式
-player_img = pg.image.load(os.path.join("img", "player.png")).convert()  # 轉換成pg好讀取的形式
-# rock_img = pg.image.load(os.path.join("img", "rock.png")).convert()  # 轉換成pg好讀取的形式
-bullet_img = pg.image.load(os.path.join("img", "bullet.png")).convert()  # 轉換成pg好讀取的形式
+background_img = pg.image.load(os.path.join("img", "background.png")).convert()  # convert轉換成pg好讀取的形式
+player_img = pg.image.load(os.path.join("img", "player.png")).convert()
+player_mini_img = pg.transform.scale(player_img, (25, 19))
+player_mini_img.set_colorkey(BLACK)
+bullet_img = pg.image.load(os.path.join("img", "bullet.png")).convert()
 rock_imgs = []
 for i in range(7):
     rock_imgs.append(pg.image.load(os.path.join("img", f"rock{i}.png")).convert())
+
 expl_anim = {}
-expl_anim['lg']=[]
-expl_anim['sm']=[]
+expl_anim['lg'] = []
+expl_anim['sm'] = []
+expl_anim['player'] = []
+
 for i in range(9):
-    expl_img  = pg.image.load(os.path.join("img", f"expl{i}.png")).convert()
+    expl_img = pg.image.load(os.path.join("img", f"expl{i}.png")).convert()
     expl_img.set_colorkey(BLACK)
     expl_anim['lg'].append(pg.transform.scale(expl_img, (75, 75)))
     expl_anim['sm'].append(pg.transform.scale(expl_img, (30, 30)))
+    player_expl_img = pg.image.load(os.path.join("img", f"player_expl{i}.png")).convert()
+    player_expl_img.set_colorkey(BLACK)
+    expl_anim['player'].append(player_expl_img)
+
+
 # 載入音效
 shoot_sound = pg.mixer.Sound(os.path.join("sound", "shoot.wav"))
+die_sound = pg.mixer.Sound(os.path.join("sound", "rumble.ogg"))
 expl_sounds = [
     pg.mixer.Sound(os.path.join("sound", "expl0.wav")),
     pg.mixer.Sound(os.path.join("sound", "expl1.wav"))
@@ -50,14 +60,21 @@ pg.mixer.music.set_volume(0.5)
 # 文字設定
 font_name = pg.font.match_font("arial")
 
+def draw_lives(surf, lives, img, x, y):
+    for i in range(lives):
+        img_rect = img.get_rect()
+        img_rect.x = x + 30 * i
+        img_rect.y = y
+        surf.blit(img, img_rect)
+
 # 將文字呈現在平面上
 def draw_text(surf, text, size, x, y):
-    font = pg.font.Font(font_name, size)  # create font with it's type and size
-    text_surface = font.render(text, True, WHITE)  # render the text on a text surface
-    text_rect = text_surface.get_rect()  # get the text's rect
-    text_rect.centerx = x  # set the text_rect's position
+    font = pg.font.Font(font_name, size)  # 設定字型及大小
+    text_surface = font.render(text, True, WHITE)  # 將文字渲染到文字平面，文字，鋸齒，顏色
+    text_rect = text_surface.get_rect()  # 產生文字匡
+    text_rect.centerx = x  # 文字匡定位
     text_rect.top = y
-    surf.blit(text_surface, text_rect)  # draw the text on surface of the argument
+    surf.blit(text_surface, text_rect)  # 利用Blit將文字匡與文字平面結合
 
 # 畫出血條
 def draw_health(surf, hp, x, y):
@@ -91,8 +108,15 @@ class Player(pygame.sprite.Sprite):
         self.rect.bottom = HEIGHT-10
         self.speedx = 9
         self.health = 100
+        self.lives = 3
+        self.hidden = False
+        self.hide_time = 0
 
     def update(self):
+        if self.hidden and pg.time.get_ticks() - self.hide_time > 1000:
+            self.hidden = False
+            self.rect.centerx = WIDTH / 2  # 以中心點為標準點
+            self.rect.bottom = HEIGHT - 10
         key_pressed = pg.key.get_pressed()  # 回傳一組布林值，表達鍵盤上按鍵是否有被按下
         if key_pressed[pg.K_RIGHT]:
             self.rect.x += self.speedx
@@ -107,10 +131,16 @@ class Player(pygame.sprite.Sprite):
             self.rect.left = 0
 
     def shoot(self):
-        bullet = Bullet(self.rect.centerx, self.rect.top)
-        all_sprites.add(bullet)
-        bullets.add(bullet)
-        shoot_sound.play()
+        if not self.hidden:
+            bullet = Bullet(self.rect.centerx, self.rect.top)
+            all_sprites.add(bullet)
+            bullets.add(bullet)
+            shoot_sound.play()
+
+    def hide(self):
+        self.hidden = True
+        self.hide_time = pg.time.get_ticks()
+        self.rect.center = (WIDTH/2, HEIGHT+500)
 
 class Rock(pygame.sprite.Sprite):
     def __init__(self):
@@ -169,7 +199,7 @@ class Bullet(pygame.sprite.Sprite):
 class Explosion(pygame.sprite.Sprite):
     def __init__(self, center, size):
         pg.sprite.Sprite.__init__(self)
-        self.size=size
+        self.size = size
         self.image = expl_anim[self.size][0]
         self.rect = self.image.get_rect()  # 定位 匡起來
         self.rect.center = center
@@ -180,6 +210,7 @@ class Explosion(pygame.sprite.Sprite):
     def update(self):
         now = pg.time.get_ticks()
         if now - self.last_update > self.frame_rate:
+            self.last_update = now
             self.frame += 1
             if self.frame == len(expl_anim[self.size]):  # 如果是最後一張爆炸圖片，則刪掉自己
                 self.kill()
@@ -212,8 +243,11 @@ while running:
         elif event.type == pg.KEYDOWN:
             if event.key == pg.K_SPACE:
                 player.shoot()
+
     # 更新動作
     all_sprites.update()  # 執行all_sprites裡面每一個物件的update函式
+
+    # 子彈與石頭碰撞
     hits = pg.sprite.groupcollide(rocks, bullets, True, True)
     for hit in hits:
         random.choice(expl_sounds).play()
@@ -222,14 +256,23 @@ while running:
         all_sprites.add(expl)  # 加入all_sprites裡面才能畫出爆炸
         new_rock()
 
+    # 石頭與玩家碰撞
     hits2 = pg.sprite.spritecollide(player, rocks, True, pg.sprite.collide_circle)  # 判斷碰撞 player and rocks
     for hit in hits2:
         new_rock()
-        player.health -= hit.radius
+        player.health -= hit.radius *9
         expl = Explosion(hit.rect.center, 'sm')  # 產生爆炸
         all_sprites.add(expl)  # 加入all_sprites裡面才能畫出爆炸
-        if player.health <=0:
-            running = False
+        if player.health <= 0:
+            die_sound.play()
+            death_expl = Explosion(player.rect.center, 'player')  # 產生爆炸
+            all_sprites.add(death_expl)
+            player.lives -= 1
+            player.health = 100
+            player.hide()  # 玩家死亡後，隱藏一段時間再重生
+            # running = False
+    if player.lives == 0 and not (death_expl.alive()):  #
+        running = False
 
     # 畫面呈現
     # screen.fill(BLACK)
@@ -237,6 +280,7 @@ while running:
     all_sprites.draw(screen)  # 把all_sprites裡面的東西都畫到screen上
     draw_text(screen, str(score), 18, WIDTH/2, 10)
     draw_health(screen, player.health, 5, 10)
+    draw_lives(screen, player.lives, player_mini_img, WIDTH-90, 10)
     pg.display.update()
 
 pg.quit()
