@@ -30,7 +30,14 @@ bullet_img = pg.image.load(os.path.join("img", "bullet.png")).convert()  # 轉�
 rock_imgs = []
 for i in range(7):
     rock_imgs.append(pg.image.load(os.path.join("img", f"rock{i}.png")).convert())
-
+expl_anim = {}
+expl_anim['lg']=[]
+expl_anim['sm']=[]
+for i in range(9):
+    expl_img  = pg.image.load(os.path.join("img", f"expl{i}.png")).convert()
+    expl_img.set_colorkey(BLACK)
+    expl_anim['lg'].append(pg.transform.scale(expl_img, (75, 75)))
+    expl_anim['sm'].append(pg.transform.scale(expl_img, (30, 30)))
 # 載入音效
 shoot_sound = pg.mixer.Sound(os.path.join("sound", "shoot.wav"))
 expl_sounds = [
@@ -159,6 +166,29 @@ class Bullet(pygame.sprite.Sprite):
         if self.rect.bottom < 0:
             self.kill()
 
+class Explosion(pygame.sprite.Sprite):
+    def __init__(self, center, size):
+        pg.sprite.Sprite.__init__(self)
+        self.size=size
+        self.image = expl_anim[self.size][0]
+        self.rect = self.image.get_rect()  # 定位 匡起來
+        self.rect.center = center
+        self.frame = 0  # 爆炸圖片編號，從零開始
+        self.last_update = pg.time.get_ticks()  # 記錄初始化到現在經過的毫秒數
+        self.frame_rate = 50  # 設定經過多少毫秒進入到下一張圖片
+
+    def update(self):
+        now = pg.time.get_ticks()
+        if now - self.last_update > self.frame_rate:
+            self.frame += 1
+            if self.frame == len(expl_anim[self.size]):  # 如果是最後一張爆炸圖片，則刪掉自己
+                self.kill()
+            else:  # 反之則更新到下一張圖片
+                self.image = expl_anim[self.size][self.frame]
+                center = self.rect.center  # 記錄原本中心點
+                self.rect = self.image.get_rect()  # 產生新的定位匡
+                self.rect.center = center  # 其中心點定位在原本的中心點
+
 
 # 參數初始化
 all_sprites = pg.sprite.Group()  # sprite群組放sprite物件
@@ -188,12 +218,16 @@ while running:
     for hit in hits:
         random.choice(expl_sounds).play()
         score += hit.radius
+        expl = Explosion(hit.rect.center, 'lg')  # 產生爆炸
+        all_sprites.add(expl)  # 加入all_sprites裡面才能畫出爆炸
         new_rock()
 
     hits2 = pg.sprite.spritecollide(player, rocks, True, pg.sprite.collide_circle)  # 判斷碰撞 player and rocks
     for hit in hits2:
         new_rock()
         player.health -= hit.radius
+        expl = Explosion(hit.rect.center, 'sm')  # 產生爆炸
+        all_sprites.add(expl)  # 加入all_sprites裡面才能畫出爆炸
         if player.health <=0:
             running = False
 
