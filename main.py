@@ -26,6 +26,7 @@ background_img = pygame.image.load(os.path.join("img", "background.png")).conver
 player_img = pygame.image.load(os.path.join("img", "player.png")).convert()
 player_mini_img = pygame.transform.scale(player_img, (25, 19))
 player_mini_img.set_colorkey(BLACK)
+pygame.display.set_icon(player_mini_img)
 bullet_img = pygame.image.load(os.path.join("img", "bullet.png")).convert()
 rock_imgs = []
 for i in range(7):
@@ -105,8 +106,10 @@ def draw_init():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
+                return True
             elif event.type == pygame.KEYUP:
                 waiting = False
+                return False
 def new_rock():
     r = Rock()
     all_sprites.add(r)  # 碰撞後新增石頭，並加入群組重生
@@ -145,10 +148,18 @@ class Player(pygame.sprite.Sprite):
             self.rect.x += self.speedx
         if key_pressed[pygame.K_LEFT]:
             self.rect.x -= self.speedx
+        # if key_pressed[pygame.K_UP]:
+        #     self.rect.y -= self.speedx
+        # if key_pressed[pygame.K_DOWN]:
+        #     self.rect.y += self. speedx
         if self.rect.right > WIDTH:
             self.rect.right = WIDTH
         if self.rect.left < 0:
             self.rect.left = 0
+        # if self.rect.top < 0:
+        #     self.rect.top = 0
+        # if self.rect.bottom > HEIGHT:
+        #     self.rect.bottom = HEIGHT
 
     def shoot(self):
         if not self.hidden:
@@ -185,8 +196,8 @@ class Rock(pygame.sprite.Sprite):
         self.radius = int(self.rect.width * 0.8 / 2)  # 設定碰撞石頭半徑
         self.rect.centerx = random.randrange(0, WIDTH - self.rect.width)  # 設定初始座標x 以中心點為標準點
         self.rect.y = random.randrange(-180, -100)  # 設定初始座標y
-        self.speedy = random.randrange(3, 6)
-        self.speedx = random.randrange(-3, 3)
+        self.speedy = random.randrange(8, 16)
+        self.speedx = random.randrange(-7, 7)
         self.total_degree = 0
         self.rotate_degree = random.randrange(-10, 11)
 
@@ -272,7 +283,7 @@ powers = pygame.sprite.Group()
 player = Player()
 all_sprites.add(player)
 for i in range(8):
-    new_rock()  # 將rock加到rocks群組，之後與bullets群組做碰撞判斷
+    new_rock()
 score = 0
 pygame.mixer.music.play(-1)
 
@@ -281,7 +292,9 @@ show_init = True
 running = True
 while running:
     if show_init:
-        draw_init()
+        close = draw_init()
+        if close:
+            break
         show_init = False
         all_sprites = pygame.sprite.Group()  # sprite群組放sprite物件
         rocks = pygame.sprite.Group()
@@ -311,7 +324,7 @@ while running:
         score += hit.radius
         expl = Explosion(hit.rect.center, 'lg')  # 產生爆炸
         all_sprites.add(expl)  # 加入all_sprites裡面才能畫出爆炸
-        if random.random() > 0.5:
+        if random.random() > 0.9:
             pow = Power(hit.rect.center)
             all_sprites.add(pow)
             powers.add(pow)
