@@ -92,6 +92,21 @@ def draw_health(surf, hp, x, y):
     pygame.draw.rect(surf, GREEN, fill_rect)  # 畫出綠條
     pygame.draw.rect(surf, WHITE, outline_rect, 2)  # 畫出外匡
 
+def draw_init():
+    screen.blit(background_img, (0, 0))
+    draw_text(screen, "Space War", 64, WIDTH/2, HEIGHT/4)
+    draw_text(screen, "← → 移動  空白鍵發射", 22, WIDTH/2, HEIGHT/2)
+    draw_text(screen, "按任意鍵開始", 22, WIDTH/2, HEIGHT*3/4)
+    pygame.display.update()
+    waiting = True
+    while waiting:
+        clock.tick(FPS)  # 限制一秒鐘迴圈所跑的次數
+        # 取得事件 回傳一個列表，裡面是各種操作的事件
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+            elif event.type == pygame.KEYUP:
+                waiting = False
 def new_rock():
     r = Rock()
     all_sprites.add(r)  # 碰撞後新增石頭，並加入群組重生
@@ -262,8 +277,21 @@ score = 0
 pygame.mixer.music.play(-1)
 
 # 遊戲迴圈
+show_init = True
 running = True
 while running:
+    if show_init:
+        draw_init()
+        show_init = False
+        all_sprites = pygame.sprite.Group()  # sprite群組放sprite物件
+        rocks = pygame.sprite.Group()
+        bullets = pygame.sprite.Group()
+        powers = pygame.sprite.Group()
+        player = Player()
+        all_sprites.add(player)
+        for i in range(8):
+            new_rock()  # 將rock加到rocks群組，之後與bullets群組做碰撞判斷
+        score = 0
     clock.tick(FPS)  # 限制一秒鐘迴圈所跑的次數
     # 取得事件 回傳一個列表，裡面是各種操作的事件
     for event in pygame.event.get():
@@ -305,7 +333,7 @@ while running:
             player.hide()  # 玩家死亡後，隱藏一段時間再重生
             # running = False
     if player.lives == 0 and not (death_expl.alive()):  #
-        running = False
+        show_init = True
 
     # 寶物與玩家碰撞
     hits = pygame.sprite.spritecollide(player, powers, True)
